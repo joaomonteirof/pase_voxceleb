@@ -18,7 +18,7 @@ if __name__ == '__main__':
 		os.remove(args.out_path+args.out_name)
 		print(args.out_path+args.out_name+' Removed')
 
-	utt2spk = read_utt2spk(args.utt2spk else args.data_info_path+'utt2spk')
+	utt2spk = read_utt2spk(args.data_info_path+'utt2spk')
 	spk2utt = read_spk2utt(args.data_info_path+'spk2utt', args.min_recordings)
 	utt2rec = read_utt2rec(args.data_info_path+'wav.scp')
 
