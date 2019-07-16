@@ -45,8 +45,7 @@ if __name__ == '__main__':
 			continue
 
 		if data_.shape[0]>0:
-			features = np.expand_dims(features, 0)
-			hdf[speaker].create_dataset(utt_id, data=data_, maxshape=(features.shape[0]))
+			hdf[speaker].create_dataset(utt_id, data=data_, maxshape=(data_.shape[0]))
 		else:
 			print('EMPTY FEATURES ARRAY IN FILE {} !!!!!!!!!'.format(utt_id))
 
