@@ -12,6 +12,7 @@ if __name__ == '__main__':
 	parser.add_argument('--out-path', type=str, default='./', metavar='Path', help='Path to output hdf file')
 	parser.add_argument('--out-name', type=str, default='train.hdf', metavar='Path', help='Output hdf file name')
 	parser.add_argument('--sampling-rate', type=int, default=16000, help='Sampling rate (Default: 16000)')
+	parser.add_argument('--m4a', action='store_true', default=False)
 	args = parser.parse_args()
 
 	if os.path.isfile(args.out_path+args.out_name):
@@ -20,7 +21,7 @@ if __name__ == '__main__':
 
 	utt2spk = read_utt2spk(args.data_info_path+'utt2spk')
 	spk2utt = read_spk2utt(args.data_info_path+'spk2utt', args.min_recordings)
-	utt2rec = read_utt2rec(args.data_info_path+'wav.scp')
+	utt2rec = read_utt2rec(args.data_info_path+'wav.scp', args.m4a)
 
 	speakers_list = list(spk2utt.keys())
 

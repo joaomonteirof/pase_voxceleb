@@ -34,6 +34,7 @@ if __name__ == '__main__':
 	parser.add_argument('--read-scores', action='store_true', default=False, help='If set, reads precomputed scores at --scores-path')
 	parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables GPU use')
 	parser.add_argument('--sampling-rate', type=int, default=16000, help='Sampling rate (Default: 16000)')
+	parser.add_argument('--m4a', action='store_true', default=False)
 	args = parser.parse_args()
 	args.cuda = True if not args.no_cuda and torch.cuda.is_available() else False
 
@@ -71,8 +72,8 @@ if __name__ == '__main__':
 		if args.cuda:
 			model = model.to(device)
 
-		enroll_utt_data = read_utt2rec(args.enroll_data+'wav.scp')
-		test_utt_data = read_utt2rec(args.test_data+'wav.scp')
+		enroll_utt_data = read_utt2rec(args.enroll_data+'wav.scp', args.m4a)
+		test_utt_data = read_utt2rec(args.test_data+'wav.scp', args.m4a)
 
 		utterances_enroll, utterances_test, labels = read_trials(args.trials_path)
 

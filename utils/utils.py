@@ -98,7 +98,7 @@ def read_spk2utt(path, min_recs):
 
 	return spk2utt_dict
 
-def read_utt2rec(path):
+def read_utt2rec(path, m4a=False):
 	with open(path, 'r') as file:
 		rows = file.readlines()
 
@@ -106,7 +106,7 @@ def read_utt2rec(path):
 
 	for row in rows:
 		row = row.strip().split(' ')
-		utt, rec = row[0], row[1]
+		utt, rec = row[0], row[1] if m4a else row[0], row[5]
 		utt2rec_dict[utt] = rec
 
 	return utt2rec_dict
