@@ -106,7 +106,12 @@ def read_utt2rec(path, m4a=False):
 
 	for row in rows:
 		row = row.strip().split(' ')
-		utt, rec = row[0], row[5] if m4a else row[0], row[1]
+
+		if m4a:
+			utt, rec = row[0], row[5]
+		else:
+			utt, rec = row[0], row[1]
+
 		utt2rec_dict[utt] = rec
 
 	return utt2rec_dict
