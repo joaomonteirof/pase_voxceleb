@@ -4,7 +4,6 @@ import torch
 from sklearn import metrics
 import scipy.io as sio
 import model as model_
-import glob
 import pickle
 import os
 import sys
