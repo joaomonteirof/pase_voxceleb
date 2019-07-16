@@ -8,18 +8,17 @@ import glob
 import pickle
 import os
 import sys
+import librosa
 from utils.utils import *
 
-def prep_feats(data_, min_nb_frames=100):
+def prep_feats(data_, min_samples=16000):
 
-	features = data_.T
+	if data_.shape[0]<min_samples:
+		mul = int(np.ceil(min_samples/data_.shape[0]))
+		data_ = np.tile(data_, mul))
+		data_ = data_[:min_samples]
 
-	if features.shape[1]<min_nb_frames:
-		mul = int(np.ceil(min_nb_frames/features.shape[1]))
-		features = np.tile(features, (1, mul))
-		features = features[:, :min_nb_frames]
-
-	return torch.from_numpy(features[np.newaxis, np.newaxis, :, :]).float()
+	return torch.from_numpy(features[np.newaxis, :]).float()
 
 if __name__ == '__main__':
 
@@ -73,21 +72,8 @@ if __name__ == '__main__':
 		if args.cuda:
 			model = model.to(device)
 
-		enroll_data = None
-
-		files_list = glob.glob(args.enroll_data+'*.wav')
-
-		for file_ in files_list:
-			utt_id = file_.split('/')[-1].split('.wav')[0]
-			enroll_data[utt_id] = librosa.load(file_, sr=args.sampling_rate)[0]
-
-		files_list = glob.glob(args.test_data+'*.wav')
-
-		test_data = None
-
-		for file_ in files_list:
-			utt_id = file_.split('/')[-1].split('.wav')[0]
-			test_data[utt_id] = librosa.load(file_, sr=args.sampling_rate)[0]
+		enroll_utt_data = read_utt2rec(args.enroll_data+'wav.scp')
+		test_utt_data = read_utt2rec(args.test_data+'wav.scp')
 
 		utterances_enroll, utterances_test, labels = read_trials(args.trials_path)
 
@@ -106,7 +92,8 @@ if __name__ == '__main__':
 					emb_enroll = mem_embeddings[enroll_utt]
 				except KeyError:
 
-					enroll_utt_data = prep_feats(enroll_data[enroll_utt])
+					enroll_utt_data, fs = librosa.load(enroll_utt_data[enroll_utt], sr=args.sampling_rate)
+					enroll_utt_data = prep_feats(enroll_utt_data)
 
 					if args.cuda:
 						enroll_utt_data = enroll_utt_data.to(device)
@@ -120,7 +107,8 @@ if __name__ == '__main__':
 					emb_test = mem_embeddings[test_utt]
 				except KeyError:
 
-					test_utt_data = prep_feats(test_data[test_utt])
+					test_utt_data, fs = librosa.load(test_utt_data[test_utt], sr=args.sampling_rate)
+					test_utt_data = prep_feats(test_utt_data)
 
 					if args.cuda:
 						enroll_utt_data = enroll_utt_data.to(device)

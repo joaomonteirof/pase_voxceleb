@@ -73,7 +73,19 @@ def read_trials(path):
 
 	return enroll_utt_list, test_utt_list, labels_list
 
-def read_spk2utt(path):
+def read_utt2spk(path):
+	with open(path, 'r') as file:
+		pairs = file.readlines()
+
+	utt2spk_dict = {}
+
+	for pair in pairs:
+		utt, spk = pair.split(' ')
+		utt2spk_dict[utt] = spk.replace('\n','')
+
+	return utt2spk_dict
+
+def read_spk2utt(path, min_recs):
 	with open(path, 'r') as file:
 		rows = file.readlines()
 
@@ -81,6 +93,20 @@ def read_spk2utt(path):
 
 	for row in rows:
 		spk_utts = row.replace('\n','').split(' ')
-		spk2utt_dict[spk_utts[0]] = spk_utts[1:]
+		if len(spk_utts[1:])>=min_recs:
+			spk2utt_dict[spk_utts[0]] = spk_utts[1:]
 
 	return spk2utt_dict
+
+def read_utt2rec(path):
+	with open(path, 'r') as file:
+		rows = file.readlines()
+
+	utt2rec_dict = {}
+
+	for row in rows:
+		row = row.strip().split(' ')
+		utt, rec = row[0], row[1]
+		utt2rec_dict[utt] = rec
+
+	return utt2rec_dict
