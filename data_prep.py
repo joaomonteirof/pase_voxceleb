@@ -34,8 +34,6 @@ if __name__ == '__main__':
 
 	for utt_id, rec in utt2rec.items():
 
-		print('Processing file {}'.format(file_))
-
 		data_, fs = librosa.load(rec, sr=args.sampling_rate)
 
 		if not utt_id in utt2spk:
