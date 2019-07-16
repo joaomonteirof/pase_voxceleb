@@ -20,7 +20,7 @@ if __name__ == '__main__':
 		print(args.out_path+args.out_name+' Removed')
 
 	utt2spk = read_utt2spk(args.data_info_path+'utt2spk')
-	spk2utt = read_spk2utt(args.data_info_path+'spk2utt', args.min_recordings)
+	spk2utt = read_spk2utt(args.data_info_path+'spk2utt', 1)
 	utt2rec = read_utt2rec(args.data_info_path+'wav.scp', args.m4a)
 
 	speakers_list = list(spk2utt.keys())
