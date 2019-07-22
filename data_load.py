@@ -36,11 +36,9 @@ class Loader(Dataset):
 
 	def prep_utterance(self, data):
 
-		n_samples = sr*out_length_seconds
-
 		try:
-			ridx = np.random.randint(0, data.shape[-1]-n_samples)
-			data_ = data[ridx:(ridx+n_samples)]
+			ridx = np.random.randint(0, data.shape[-1]-self.max_len)
+			data_ = data[ridx:(ridx+self.max_len)]
 
 		except ValueError:
 
@@ -117,11 +115,9 @@ class Loader_valid(Dataset):
 
 	def prep_utterance(self, data):
 
-		n_samples = sr*out_length_seconds
-
 		try:
-			ridx = np.random.randint(0, data.shape[-1]-n_samples)
-			data_ = data[ridx:(ridx+n_samples)]
+			ridx = np.random.randint(0, data.shape[-1]-self.max_len)
+			data_ = data[ridx:(ridx+self.max_len)]
 
 		except ValueError:
 

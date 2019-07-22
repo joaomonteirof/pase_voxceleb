@@ -64,7 +64,7 @@ if args.cuda:
 else:
 	device = None
 
-elif args.model == 'resnet_18':
+if args.model == 'resnet_18':
 	model = model_.ResNet_18(pase_cfg=args.pase_cfg, pase_cp=args.pase_cp, n_z=args.latent_size, proj_size=train_dataset.n_speakers if args.softmax!='none' or args.pretrain else 0, ncoef=args.ncoef, sm_type=args.softmax)
 elif args.model == 'resnet_34':
 	model = model_.ResNet_34(pase_cfg=args.pase_cfg, pase_cp=args.pase_cp, n_z=args.latent_size, proj_size=train_dataset.n_speakers if args.softmax!='none' or args.pretrain else 0, ncoef=args.ncoef, sm_type=args.softmax)
@@ -94,6 +94,7 @@ trainer = TrainLoop(model, optimizer, train_loader, valid_loader, margin=args.ma
 if args.verbose >0:
 	print(' ')
 	print('Cuda Mode: {}'.format(args.cuda))
+	print('Device: {}'.format(device))
 	print('Pretrain Mode: {}'.format(args.pretrain))
 	print('Softmax Mode: {}'.format(args.softmax))
 	print('Mining Mode: {}'.format(args.mine_triplets))
