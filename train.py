@@ -61,6 +61,8 @@ else:
 
 if args.cuda:
 	device = get_freer_gpu()
+	import cupy
+	cupy.cuda.Device(int(str(device).split(':')[-1])).use()
 else:
 	device = None
 
