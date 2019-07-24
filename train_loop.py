@@ -12,7 +12,7 @@ from utils.utils import compute_eer
 
 class TrainLoop(object):
 
-	def __init__(self, model, optimizer, train_loader, valid_loader, margin, lambda_, patience, verbose=-1, device=0, cp_name=None, save_cp=False, checkpoint_path=None, checkpoint_epoch=None, swap=False, softmax=False, pretrain=False, mining=False, cuda=True):
+	def __init__(self, model, optimizer, optimizer_pase, train_loader, valid_loader, margin, lambda_, patience, verbose=-1, device=0, cp_name=None, save_cp=False, checkpoint_path=None, checkpoint_epoch=None, swap=False, softmax=False, pretrain=False, mining=False, cuda=True):
 		if checkpoint_path is None:
 			# Save to current directory
 			self.checkpoint_path = os.getcwd()
@@ -30,6 +30,7 @@ class TrainLoop(object):
 		self.swap = swap
 		self.lambda_ = lambda_
 		self.optimizer = optimizer
+		self.optimizer_pase = optimizer_pase
 		self.train_loader = train_loader
 		self.valid_loader = valid_loader
 		self.total_iters = 0
@@ -162,6 +163,7 @@ class TrainLoop(object):
 
 		self.model.train()
 		self.optimizer.zero_grad()
+		self.optimizer_pase.zero_grad()
 
 		utt_1, utt_2, utt_3, utt_4, utt_5, y = batch
 		utterances = torch.cat([utt_1, utt_2, utt_3, utt_4, utt_5], dim=0)
@@ -208,12 +210,14 @@ class TrainLoop(object):
 		else:
 			loss.backward()
 			self.optimizer.step()
+			self.optimizer_pase.step()
 			return loss_log
 
 	def pretrain_step(self, batch):
 
 		self.model.train()
 		self.optimizer.zero_grad()
+		self.optimizer_pase.zero_grad()
 
 		utt_1, utt_2, utt_3, utt_4, utt_5, y = batch
 		utterances = torch.cat([utt_1, utt_2, utt_3, utt_4, utt_5], dim=0)
@@ -233,6 +237,7 @@ class TrainLoop(object):
 
 		loss.backward()
 		self.optimizer.step()
+		self.optimizer_pase.step()
 		return loss.item()
 
 
@@ -283,6 +288,7 @@ class TrainLoop(object):
 			print('Checkpointing...')
 		ckpt = {'model_state': self.model.state_dict(),
 		'optimizer_state': self.optimizer.state_dict(),
+		'optimizer_pase_state': self.optimizer_pase.state_dict(),
 		'scheduler_state': self.scheduler.state_dict(),
 		'history': self.history,
 		'total_iters': self.total_iters,
@@ -301,6 +307,7 @@ class TrainLoop(object):
 			self.model.load_state_dict(ckpt['model_state'])
 			# Load optimizer state
 			self.optimizer.load_state_dict(ckpt['optimizer_state'])
+			self.optimizer_pase.load_state_dict(ckpt['optimizer_pase_state'])
 			# Load scheduler state
 			self.scheduler.load_state_dict(ckpt['scheduler_state'])
 			# Load history

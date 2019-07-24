@@ -17,6 +17,7 @@ parser.add_argument('--batch-size', type=int, default=64, metavar='N', help='inp
 parser.add_argument('--valid-batch-size', type=int, default=64, metavar='N', help='input batch size for valid (default: 64)')
 parser.add_argument('--epochs', type=int, default=500, metavar='N', help='number of epochs to train (default: 500)')
 parser.add_argument('--lr', type=float, default=0.001, metavar='LR', help='learning rate (default: 0.001)')
+parser.add_argument('--lr-pase', type=float, default=None, metavar='LR', help='Pase LR')
 parser.add_argument('--momentum', type=float, default=0.9, metavar='m', help='Momentum paprameter (default: 0.9)')
 parser.add_argument('--l2', type=float, default=1e-5, metavar='L2', help='Weight decay coefficient (default: 0.00001)')
 parser.add_argument('--margin', type=float, default=0.3, metavar='m', help='margin fro triplet loss (default: 0.3)')
@@ -89,9 +90,10 @@ if args.pretrained_path is not None:
 if args.cuda:
 	model = model.to(device)
 
-optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.l2)
+optimizer_pase = optim.SGD(model.encoder.parameters(), lr=args.lr if args.pase_lr else args.lr/10., momentum=args.momentum, weight_decay=args.l2)
+optimizer = optim.SGD(model.model.parameters()+model.pooling.parameters()+model.post_pooling.parameters(), lr=args.pase_lr, momentum=args.momentum, weight_decay=args.l2)
 
-trainer = TrainLoop(model, optimizer, train_loader, valid_loader, margin=args.margin, lambda_=args.lamb, patience=args.patience, verbose=args.verbose, device=device, save_cp=(not args.no_cp), checkpoint_path=args.checkpoint_path, checkpoint_epoch=args.checkpoint_epoch, swap=args.swap, softmax=args.softmax, pretrain=args.pretrain, mining=args.mine_triplets, cuda=args.cuda)
+trainer = TrainLoop(model, optimizer, optimizer_pase, train_loader, valid_loader, margin=args.margin, lambda_=args.lamb, patience=args.patience, verbose=args.verbose, device=device, save_cp=(not args.no_cp), checkpoint_path=args.checkpoint_path, checkpoint_epoch=args.checkpoint_epoch, swap=args.swap, softmax=args.softmax, pretrain=args.pretrain, mining=args.mine_triplets, cuda=args.cuda)
 
 if args.verbose >0:
 	print(' ')
@@ -104,6 +106,7 @@ if args.verbose >0:
 	print('Embeddings size: {}'.format(args.latent_size))
 	print('Batch size: {}'.format(args.batch_size))
 	print('LR: {}'.format(args.lr))
+	print('Pase LR: {}'.format(args.pase_lr if args.pase_lr else args.lr/10.))
 	print('momentum: {}'.format(args.momentum))
 	print('l2: {}'.format(args.l2))
 	print('lambda: {}'.format(args.lamb))

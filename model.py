@@ -90,26 +90,29 @@ class PreActBottleneck(nn.Module):
 
 class ResNet_50(nn.Module):
 	def __init__(self, pase_cfg, pase_cp=None, n_z=256, layers=[3,4,6,3], block=PreActBottleneck, proj_size=0, ncoef=23, sm_type='none'):
-		self.in_planes = 32
+		self.in_planes = 16
 		super(ResNet_50, self).__init__()
 
-		self.conv1 = nn.Conv2d(1, 32, kernel_size=(ncoef,3), stride=(1,1), padding=(0,1), bias=False)
-		self.bn1 = nn.BatchNorm2d(32)
-		self.activation = nn.ReLU()
+		self.model = nn.ModuleList()
 
-		self.layer1 = self._make_layer(block, 64, layers[0], stride=1)
-		self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-		self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-		self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+		self.model.append(nn.Sequential(nn.Conv2d(1, 16, kernel_size=(ncoef,3), stride=(1,1), padding=(0,1), bias=False), nn.BatchNorm2d(16), nn.ReLU()))
 
-		self.fc = nn.Linear(block.expansion*512*2,512)
-		self.lbn = nn.BatchNorm1d(512)
-
-		self.fc_mu = nn.Linear(512, n_z)
+		self.model.append(self._make_layer(block, 64, layers[0], stride=1))
+		self.model.append(self._make_layer(block, 128, layers[1], stride=2))
+		self.model.append(self._make_layer(block, 256, layers[2], stride=2))
+		self.model.append(self._make_layer(block, 512, layers[3], stride=2))
 
 		self.initialize_params()
 
-		self.attention = SelfAttention(block.expansion*512)
+		self.pooling = SelfAttention(block.expansion*512)
+
+		self.post_pooling = nn.Sequential(nn.Conv1d(block.expansion*512*2, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, n_z, 1) )
 
 		if proj_size>0 and sm_type!='none':
 			if sm_type=='softmax':
@@ -146,43 +149,43 @@ class ResNet_50(nn.Module):
 	def forward(self, x):
 
 		z = self.encoder(x.unsqueeze(1)).unsqueeze(1)
-		x = self.conv1(z)
-		x = self.activation(self.bn1(x))
-		x = self.layer1(x)
-		x = self.layer2(x)
-		x = self.layer3(x)
-		x = self.layer4(x)
-		x = x.squeeze(2)
 
-		stats = self.attention(x.permute(0,2,1).contiguous())
+		for mod_ in self.model:
+			z = mod_(z)
 
-		fc = F.relu(self.lbn(self.fc(stats)))
+		z = z.squeeze(2)
 
-		mu = self.fc_mu(fc)
-		return mu
+		z = self.pooling(z.permute(0,2,1).contiguous()).unsqueeze(-1)
+
+		z = self.post_pooling(z)
+
+		return z.squeeze()
 
 class ResNet_34(nn.Module):
 	def __init__(self, pase_cfg, pase_cp=None, n_z=256, layers=[3,4,6,3], block=PreActBlock, proj_size=0, ncoef=23, sm_type='none'):
-		self.in_planes = 32
+		self.in_planes = 16
 		super(ResNet_34, self).__init__()
 
-		self.conv1 = nn.Conv2d(1, 32, kernel_size=(ncoef,3), stride=(1,1), padding=(0,1), bias=False)
-		self.bn1 = nn.BatchNorm2d(32)
-		self.activation = nn.ReLU()
+		self.model = nn.ModuleList()
 
-		self.layer1 = self._make_layer(block, 64, layers[0], stride=1)
-		self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-		self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-		self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+		self.model.append(nn.Sequential(nn.Conv2d(1, 16, kernel_size=(ncoef,3), stride=(1,1), padding=(0,1), bias=False), nn.BatchNorm2d(16), nn.ReLU()))
 
-		self.fc = nn.Linear(block.expansion*512*2,512)
-		self.lbn = nn.BatchNorm1d(512)
-
-		self.fc_mu = nn.Linear(512, n_z)
+		self.model.append(self._make_layer(block, 64, layers[0], stride=1))
+		self.model.append(self._make_layer(block, 128, layers[1], stride=2))
+		self.model.append(self._make_layer(block, 256, layers[2], stride=2))
+		self.model.append(self._make_layer(block, 512, layers[3], stride=2))
 
 		self.initialize_params()
 
-		self.attention = SelfAttention(block.expansion*512)
+		self.pooling = SelfAttention(block.expansion*512)
+
+		self.post_pooling = nn.Sequential(nn.Conv1d(block.expansion*512*2, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, n_z, 1) )
 
 		if proj_size>0 and sm_type!='none':
 			if sm_type=='softmax':
@@ -219,43 +222,43 @@ class ResNet_34(nn.Module):
 	def forward(self, x):
 
 		z = self.encoder(x.unsqueeze(1)).unsqueeze(1)
-		x = self.conv1(z)
-		x = self.activation(self.bn1(x))
-		x = self.layer1(x)
-		x = self.layer2(x)
-		x = self.layer3(x)
-		x = self.layer4(x)
-		x = x.squeeze(2)
 
-		stats = self.attention(x.permute(0,2,1).contiguous())
+		for mod_ in self.model:
+			z = mod_(z)
 
-		fc = F.relu(self.lbn(self.fc(stats)))
+		z = z.squeeze(2)
 
-		mu = self.fc_mu(fc)
-		return mu
+		z = self.pooling(z.permute(0,2,1).contiguous()).unsqueeze(-1)
+
+		z = self.post_pooling(z)
+
+		return z.squeeze()
 
 class ResNet_18(nn.Module):
 	def __init__(self, pase_cfg, pase_cp=None, n_z=256, layers=[2,2,2,2], block=PreActBlock, proj_size=0, ncoef=23, sm_type='none'):
 		self.in_planes = 16
 		super(ResNet_18, self).__init__()
 
-		self.conv1 = nn.Conv2d(1, 16, kernel_size=(ncoef,3), stride=(1,1), padding=(0,1), bias=False)
-		self.bn1 = nn.BatchNorm2d(16)
-		self.activation = nn.ReLU()
+		self.model = nn.ModuleList()
 
-		self.layer1 = self._make_layer(block, 64, layers[0], stride=1)
-		self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-		self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-		self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+		self.model.append(nn.Sequential(nn.Conv2d(1, 16, kernel_size=(ncoef,3), stride=(1,1), padding=(0,1), bias=False), nn.BatchNorm2d(16), nn.ReLU()))
 
-		self.fc = nn.Linear(block.expansion*512*2,512)
-		self.lbn = nn.BatchNorm1d(512)
-
-		self.fc_mu = nn.Linear(512, n_z)
+		self.model.append(self._make_layer(block, 64, layers[0], stride=1))
+		self.model.append(self._make_layer(block, 128, layers[1], stride=2))
+		self.model.append(self._make_layer(block, 256, layers[2], stride=2))
+		self.model.append(self._make_layer(block, 512, layers[3], stride=2))
 
 		self.initialize_params()
 
-		self.attention = SelfAttention(block.expansion*512)
+		self.pooling = SelfAttention(block.expansion*512)
+
+		self.post_pooling = nn.Sequential(nn.Conv1d(block.expansion*512*2, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, n_z, 1) )
 
 		if proj_size>0 and sm_type!='none':
 			if sm_type=='softmax':
@@ -292,20 +295,17 @@ class ResNet_18(nn.Module):
 	def forward(self, x):
 
 		z = self.encoder(x.unsqueeze(1)).unsqueeze(1)
-		x = self.conv1(z)
-		x = self.activation(self.bn1(x))
-		x = self.layer1(x)
-		x = self.layer2(x)
-		x = self.layer3(x)
-		x = self.layer4(x)
-		x = x.squeeze(2)
 
-		stats = self.attention(x.permute(0,2,1).contiguous())
+		for mod_ in self.model:
+			z = mod_(z)
 
-		fc = F.relu(self.lbn(self.fc(stats)))
+		z = z.squeeze(2)
 
-		mu = self.fc_mu(fc)
-		return mu
+		z = self.pooling(z.permute(0,2,1).contiguous()).unsqueeze(-1)
+
+		z = self.post_pooling(z)
+
+		return z.squeeze()
 
 class StatisticalPooling(nn.Module):
 
@@ -338,9 +338,11 @@ class TDNN(nn.Module):
 			nn.ReLU(inplace=True),
 			nn.Conv1d(512, 1500, 1),
 			nn.BatchNorm1d(1500),
-			nn.ReLU(inplace=True),
-			StatisticalPooling(),
-			nn.Conv1d(3000, 512, 1),
+			nn.ReLU(inplace=True))
+
+		self.pooling = StatisticalPooling()
+
+		self.post_pooling = nn.Sequential(nn.Conv1d(3000, 512, 1),
 			nn.BatchNorm1d(512),
 			nn.ReLU(inplace=True),
 			nn.Conv1d(512, 512, 1),
@@ -357,5 +359,10 @@ class TDNN(nn.Module):
 				raise NotImplementedError
 
 	def forward(self, x):
+
 		z = self.encoder(x.unsqueeze(1))
-		return self.model(z).squeeze()
+		z = self.model(z)
+		z = self.pooling(z)
+		z = self.post_pooling(z)
+
+		return z.squeeze()
