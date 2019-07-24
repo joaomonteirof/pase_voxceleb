@@ -90,8 +90,8 @@ if args.pretrained_path is not None:
 if args.cuda:
 	model = model.to(device)
 
-optimizer_pase = optim.SGD(model.encoder.parameters(), lr=args.lr if args.pase_lr else args.lr/10., momentum=args.momentum, weight_decay=args.l2)
-optimizer = optim.SGD(model.model.parameters()+model.pooling.parameters()+model.post_pooling.parameters(), lr=args.pase_lr, momentum=args.momentum, weight_decay=args.l2)
+optimizer_pase = optim.SGD(model.encoder.parameters(), lr=args.lr if args.lr_pase else args.lr/10., momentum=args.momentum, weight_decay=args.l2)
+optimizer = optim.SGD(model.model.parameters()+model.pooling.parameters()+model.post_pooling.parameters(), lr=args.lr_pase, momentum=args.momentum, weight_decay=args.l2)
 
 trainer = TrainLoop(model, optimizer, optimizer_pase, train_loader, valid_loader, margin=args.margin, lambda_=args.lamb, patience=args.patience, verbose=args.verbose, device=device, save_cp=(not args.no_cp), checkpoint_path=args.checkpoint_path, checkpoint_epoch=args.checkpoint_epoch, swap=args.swap, softmax=args.softmax, pretrain=args.pretrain, mining=args.mine_triplets, cuda=args.cuda)
 
@@ -106,7 +106,7 @@ if args.verbose >0:
 	print('Embeddings size: {}'.format(args.latent_size))
 	print('Batch size: {}'.format(args.batch_size))
 	print('LR: {}'.format(args.lr))
-	print('Pase LR: {}'.format(args.pase_lr if args.pase_lr else args.lr/10.))
+	print('Pase LR: {}'.format(args.lr_pase if args.lr_pase else args.lr/10.))
 	print('momentum: {}'.format(args.momentum))
 	print('l2: {}'.format(args.l2))
 	print('lambda: {}'.format(args.lamb))
