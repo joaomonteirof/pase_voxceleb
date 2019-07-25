@@ -206,6 +206,7 @@ class TrainLoop(object):
 			loss += ce
 			loss.backward()
 			self.optimizer.step()
+			self.optimizer_pase.step()
 			return loss_log+ce.item(), ce.item()
 		else:
 			loss.backward()
