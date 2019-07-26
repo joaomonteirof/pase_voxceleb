@@ -140,6 +140,7 @@ class TrainLoop(object):
 
 			if self.verbose>0:
 				print('Current LR: {}'.format(self.optimizer.param_groups[0]['lr']))
+				print('Current LR PASE: {}'.format(self.optimizer_pase.param_groups[0]['lr']))
 
 			self.cur_epoch += 1
 
