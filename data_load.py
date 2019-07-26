@@ -95,6 +95,8 @@ class Loader(Dataset):
 
 	def prep_utterance(self, data):
 
+		data=data.value
+
 		if self.vad:
 			win_len = int(16000*0.025)
 			hop_len = int(16000*0.010)
@@ -183,6 +185,8 @@ class Loader_valid(Dataset):
 		return len(self.utt_list)
 
 	def prep_utterance(self, data):
+
+		data=data.value
 
 		if self.vad:
 			win_len = int(16000*0.025)
