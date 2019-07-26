@@ -96,8 +96,8 @@ class Loader(Dataset):
 	def prep_utterance(self, data):
 
 		if self.vad:
-			win_len = int(s*0.025)
-			hop_len = int(s*0.010)
+			win_len = int(16000*0.025)
+			hop_len = int(16000*0.010)
 			sframes = enframe(data,win_len,hop_len)
 			percent_high_nrg = 0.5
 			vad = nrg_vad(sframes,percent_high_nrg)
@@ -185,8 +185,8 @@ class Loader_valid(Dataset):
 	def prep_utterance(self, data):
 
 		if self.vad:
-			win_len = int(s*0.025)
-			hop_len = int(s*0.010)
+			win_len = int(16000*0.025)
+			hop_len = int(16000*0.010)
 			sframes = enframe(data,win_len,hop_len)
 			percent_high_nrg = 0.5
 			vad = nrg_vad(sframes,percent_high_nrg)
