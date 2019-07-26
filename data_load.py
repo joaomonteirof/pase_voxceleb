@@ -4,12 +4,71 @@ import torch
 from torch.utils.data import Dataset
 from utils.utils import strided_app
 
+def add_wgn(s,var=1e-4):
+	np.random.seed(0)
+	noise = np.random.normal(0,var,len(s))
+	return s + noise
+
+def enframe(x, win_len, hop_len):
+
+	x = np.squeeze(x)
+	if x.ndim != 1:
+		raise TypeError("enframe input must be a 1-dimensional array.")
+	n_frames = 1 + np.int(np.floor((len(x) - win_len) / float(hop_len)))
+	x_framed = np.zeros((n_frames, win_len))
+	for i in range(n_frames):
+		x_framed[i] = x[i * hop_len : i * hop_len + win_len]
+	return x_framed
+
+def deframe(x_framed, win_len, hop_len):
+	n_frames = len(x_framed)
+	n_samples = n_frames*hop_len + win_len
+	x_samples = np.zeros((n_samples,1))
+	for i in range(n_frames):
+		x_samples[i*hop_len : i*hop_len + win_len] = x_framed[i]
+	return x_samples
+
+def zero_mean(xframes):
+	m = np.mean(xframes,axis=1)
+	xframes = xframes - np.tile(m,(xframes.shape[1],1)).T
+	return xframes
+
+def compute_nrg(xframes):
+	n_frames = xframes.shape[1]
+	return np.diagonal(np.dot(xframes,xframes.T))/float(n_frames)
+
+def compute_log_nrg(xframes):
+	n_frames = xframes.shape[1]
+	raw_nrgs = np.log(compute_nrg(xframes+1e-5))/float(n_frames)
+	return (raw_nrgs - np.mean(raw_nrgs))/(np.sqrt(np.var(raw_nrgs)))
+
+def power_spectrum(xframes):
+	X = np.fft.fft(xframes,axis=1)
+	X = np.abs(X[:,:X.shape[1]/2])**2
+	return np.sqrt(X)
+
+def nrg_vad(xframes,percent_thr,nrg_thr=0.,context=5):
+	xframes = zero_mean(xframes)
+	n_frames = xframes.shape[1]
+	
+	# Compute per frame energies:
+	xnrgs = compute_log_nrg(xframes)
+	xvad = np.zeros((n_frames,1))
+	for i in range(n_frames):
+		start = max(i-context,0)
+		end = min(i+context,n_frames-1)
+		n_above_thr = np.sum(xnrgs[start:end]>nrg_thr)
+		n_total = end-start+1
+		xvad[i] = 1.*((float(n_above_thr)/n_total) > percent_thr)
+	return xvad
+
 class Loader(Dataset):
 
-	def __init__(self, hdf5_name, max_len):
+	def __init__(self, hdf5_name, max_len, vad=True):
 		super(Loader, self).__init__()
 		self.hdf5_name = hdf5_name
 		self.max_len = int(max_len)
+		self.vad=vad
 
 		self.create_lists()
 
@@ -35,6 +94,15 @@ class Loader(Dataset):
 		return len(self.utt_list)
 
 	def prep_utterance(self, data):
+
+		if self.vad:
+			win_len = int(s*0.025)
+			hop_len = int(s*0.010)
+			sframes = enframe(data,win_len,hop_len)
+			percent_high_nrg = 0.5
+			vad = nrg_vad(sframes,percent_high_nrg)
+			vad = deframe(vad,win_len,hop_len)[:len(data)].squeeze()
+			data = data[np.where(vad==1)]
 
 		try:
 			ridx = np.random.randint(0, data.shape[-1]-self.max_len)
@@ -82,10 +150,11 @@ class Loader(Dataset):
 
 class Loader_valid(Dataset):
 
-	def __init__(self, hdf5_name, max_len):
+	def __init__(self, hdf5_name, max_len, vad=True):
 		super(Loader_valid, self).__init__()
 		self.hdf5_name = hdf5_name
 		self.max_len = int(max_len)
+		self.vad=vad
 
 		self.create_lists()
 
@@ -114,6 +183,15 @@ class Loader_valid(Dataset):
 		return len(self.utt_list)
 
 	def prep_utterance(self, data):
+
+		if self.vad:
+			win_len = int(s*0.025)
+			hop_len = int(s*0.010)
+			sframes = enframe(data,win_len,hop_len)
+			percent_high_nrg = 0.5
+			vad = nrg_vad(sframes,percent_high_nrg)
+			vad = deframe(vad,win_len,hop_len)[:len(data)].squeeze()
+			data = data[np.where(vad==1)]
 
 		try:
 			ridx = np.random.randint(0, data.shape[-1]-self.max_len)
@@ -147,120 +225,3 @@ class Loader_valid(Dataset):
 				self.utt_list.append(utt)
 
 		open_file.close()
-
-class Loader_test(Dataset):
-
-	def __init__(self, hdf5_name):
-		super(Loader_test, self).__init__()
-		self.hdf5_name = hdf5_name
-
-		self.create_lists()
-
-		self.open_file = None
-
-		self.update_lists()
-
-	def __getitem__(self, index):
-
-		utt_1, utt_2, utt_3, utt_4, utt_5, spk, y= self.utt_list[index]
-
-		assert utt_1 in self.spk2utt[spk] and utt_2 in self.spk2utt[spk] and utt_3 in self.spk2utt[spk] and utt_4 in self.spk2utt[spk] and utt_5 in self.spk2utt[spk]
-
-		utt_list_ = [utt_1, utt_2, utt_3, utt_4, utt_5]
-
-		assert len(utt_list_) == len(set(utt_list_))
-
-		return utt_1, utt_2, utt_3, utt_4, utt_5, spk, y
-
-	def __len__(self):
-		return len(self.utt_list)
-
-	def create_lists(self):
-
-		open_file = h5py.File(self.hdf5_name, 'r')
-
-		self.spk2label = {}
-		self.spk2utt = {}
-		self.utt_list = []
-
-		for i, spk in enumerate(open_file):
-			spk_utt_list = list(open_file[spk])
-			self.spk2utt[spk] = spk_utt_list
-			self.spk2label[spk] = torch.LongTensor([i])
-
-		open_file.close()
-
-		self.n_speakers = len(self.spk2utt)
-
-	def update_lists(self):
-
-		self.utt_list = []
-
-		print('\nNew List!!\n')
-
-		utt_count = 0
-		included_utt_count = 0
-
-		for i, spk in enumerate(self.spk2utt):
-			spk_utt_list = np.random.permutation(list(self.spk2utt[spk]))
-
-			utt_count += len(spk_utt_list)
-
-			idxs = strided_app(np.arange(len(spk_utt_list)),5,5)
-
-			for idxs_list in idxs:
-
-				if len(idxs_list)==5:
-					self.utt_list.append([spk_utt_list[utt_idx] for utt_idx in idxs_list])
-					included_utt_count+=len(self.utt_list[-1])
-					if len(self.utt_list)>1:
-						assert len(set(self.utt_list[-1]) & set(self.utt_list[-2]))==0
-					self.utt_list[-1].append(spk)
-					self.utt_list[-1].append(self.spk2label[spk])
-
-		print('Total utts and included utts: {}, {}'.format(utt_count,included_utt_count))
-
-		tot_list = [item for sublist in self.utt_list for item in sublist[:-2]]
-
-		print(5*len(self.utt_list), len(tot_list))
-
-if __name__=='__main__':
-
-	import torch.utils.data
-	import argparse
-
-	def compare_spk2utts(l1, l2):
-		assert len(l1)==len(l2)
-		assert len(set(l1.keys()) & set(l2.keys()))==len(l1)
-		count_1=0
-		count_2=0
-		for spk in l1:
-			assert len(set(l1[spk]) & set(l2[spk]))==min(len(l1[spk]), len(l2[spk]))
-			count_1+=len(l1[spk])
-			count_2+=len(l2[spk])
-
-		print(count_1, count_2)
-
-	parser = argparse.ArgumentParser(description='Test data loader')
-	parser.add_argument('--hdf-file', type=str, default='./data/train.hdf', metavar='Path', help='Path to hdf data')
-	args = parser.parse_args()
-
-	dataset = Loader_test(hdf5_name = args.hdf_file)
-	loader = torch.utils.data.DataLoader(dataset, batch_size=10, shuffle=True, num_workers=4)
-
-	loader.dataset.update_lists()
-
-	print('Dataset length: {}, {}'.format(len(loader.dataset), len(loader.dataset.utt_list)))
-
-	spk2utt = {}
-
-	for batch in loader:
-		utt_1, utt_2, utt_3, utt_4, utt_5, spk, y = batch
-
-		for i in range(len(batch[-1])):
-			if spk[i] in spk2utt:
-				spk2utt[spk[i]]+=[utt_1[i], utt_2[i], utt_3[i], utt_4[i], utt_5[i]]
-			else:
-				spk2utt[spk[i]]=[utt_1[i], utt_2[i], utt_3[i], utt_4[i], utt_5[i]]
-
-	compare_spk2utts(loader.dataset.spk2utt, spk2utt)

@@ -41,6 +41,7 @@ parser.add_argument('--max-len', type=int, default=96000, metavar='N', help='max
 parser.add_argument('--softmax', choices=['none', 'softmax', 'am_softmax'], default='none', help='Softmax type')
 parser.add_argument('--pretrain', action='store_true', default=False, help='Adds softmax layer for speaker identification and train exclusively with CE minimization')
 parser.add_argument('--mine-triplets', action='store_true', default=False, help='Enables distance mining for triplets')
+parser.add_argument('--vad', action='store_true', default=True, help='Remove silence frames from train recordings')
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables GPU use')
 parser.add_argument('--no-cp', action='store_true', default=False, help='Disables checkpointing')
 parser.add_argument('--verbose', type=int, default=1, metavar='N', help='Verbose is activated if > 0')
@@ -51,11 +52,11 @@ torch.manual_seed(args.seed)
 if args.cuda:
 	torch.cuda.manual_seed(args.seed)
 
-train_dataset = Loader(hdf5_name = args.train_hdf_file, max_len = args.max_len)
+train_dataset = Loader(hdf5_name = args.train_hdf_file, max_len = args.max_len, vad = args.vad)
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, worker_init_fn=set_np_randomseed)
 
 if args.valid_hdf_file is not None:
-	valid_dataset = Loader_valid(hdf5_name = args.valid_hdf_file, max_len = args.max_len)
+	valid_dataset = Loader_valid(hdf5_name = args.valid_hdf_file, max_len = args.max_len, vad = args.vad)
 	valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.valid_batch_size, shuffle=True, num_workers=args.workers, worker_init_fn=set_np_randomseed)
 else:
 	valid_loader=None
