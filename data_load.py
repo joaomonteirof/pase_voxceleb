@@ -101,19 +101,23 @@ class Loader(Dataset):
 			win_len = int(16000*0.025)
 			hop_len = int(16000*0.010)
 			sframes = enframe(data,win_len,hop_len)
-			percent_high_nrg = 0.5
+			percent_high_nrg = 0.4
 			vad = nrg_vad(sframes,percent_high_nrg)
 			vad = deframe(vad,win_len,hop_len)[:len(data)].squeeze()
-			data = data[np.where(vad==1)]
+			data_ = data[np.where(vad==1)]
+			if data_.shape[-1]<500:
+				data_ = data
+		else:
+			data_ = data
 
 		try:
-			ridx = np.random.randint(0, data.shape[-1]-self.max_len)
-			data_ = data[ridx:(ridx+self.max_len)]
+			ridx = np.random.randint(0, data_.shape[-1]-self.max_len)
+			data_ = data_[ridx:(ridx+self.max_len)]
 
 		except ValueError:
 
-			mul = int(np.ceil(self.max_len/data.shape[-1]))
-			data_ = np.tile(data, (mul))
+			mul = int(np.ceil(self.max_len/data_.shape[-1]))
+			data_ = np.tile(data_, (mul))
 			data_ = data_[:self.max_len]
 
 		return data_
@@ -192,19 +196,23 @@ class Loader_valid(Dataset):
 			win_len = int(16000*0.025)
 			hop_len = int(16000*0.010)
 			sframes = enframe(data,win_len,hop_len)
-			percent_high_nrg = 0.5
+			percent_high_nrg = 0.4
 			vad = nrg_vad(sframes,percent_high_nrg)
 			vad = deframe(vad,win_len,hop_len)[:len(data)].squeeze()
-			data = data[np.where(vad==1)]
+			data_ = data[np.where(vad==1)]
+			if data_.shape[-1]<500:
+				data_ = data
+		else:
+			data_ = data
 
 		try:
-			ridx = np.random.randint(0, data.shape[-1]-self.max_len)
-			data_ = data[ridx:(ridx+self.max_len)]
+			ridx = np.random.randint(0, data_.shape[-1]-self.max_len)
+			data_ = data_[ridx:(ridx+self.max_len)]
 
 		except ValueError:
 
-			mul = int(np.ceil(self.max_len/data.shape[-1]))
-			data_ = np.tile(data, (mul))
+			mul = int(np.ceil(self.max_len/data_.shape[-1]))
+			data_ = np.tile(data_, (mul))
 			data_ = data_[:self.max_len]
 
 		return data_
