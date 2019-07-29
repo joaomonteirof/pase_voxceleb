@@ -434,7 +434,7 @@ class pyr_rnn(nn.Module):
 		self.model = nn.ModuleList([nn.LSTM(2*ncoef, 256, 1, bidirectional=True, batch_first=True)])
 
 		for i in range(1,n_layers):
-			self.lstms.append(nn.LSTM(256*2*2, 256, 1, bidirectional=True, batch_first=True))
+			self.model.append(nn.LSTM(256*2*2, 256, 1, bidirectional=True, batch_first=True))
 
 		self.pooling = StatisticalPooling()
 
