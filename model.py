@@ -95,7 +95,7 @@ class ResNet_50(nn.Module):
 
 		self.model = nn.ModuleList()
 
-		self.model.append(nn.Sequential(nn.Conv2d(1, 16, kernel_size=(ncoef,3), stride=(1,1), padding=(0,1), bias=False), nn.BatchNorm2d(16), nn.ReLU()))
+		self.model.append(nn.Sequential(nn.Conv2d(1, 16, kernel_size=(2*ncoef,3), stride=(1,1), padding=(0,1), bias=False), nn.BatchNorm2d(16), nn.ReLU()))
 
 		self.model.append(self._make_layer(block, 64, layers[0], stride=1))
 		self.model.append(self._make_layer(block, 128, layers[1], stride=2))
@@ -149,6 +149,9 @@ class ResNet_50(nn.Module):
 	def forward(self, x):
 
 		z = self.encoder(x.unsqueeze(1)).unsqueeze(1)
+
+		z_mu = z.mean(-1, keepdim=True).repeat([1,1,1,z.size(-1)])
+		z=torch.cat([z, z_mu], 2)
 
 		for mod_ in self.model:
 			z = mod_(z)
@@ -168,7 +171,7 @@ class ResNet_34(nn.Module):
 
 		self.model = nn.ModuleList()
 
-		self.model.append(nn.Sequential(nn.Conv2d(1, 16, kernel_size=(ncoef,3), stride=(1,1), padding=(0,1), bias=False), nn.BatchNorm2d(16), nn.ReLU()))
+		self.model.append(nn.Sequential(nn.Conv2d(1, 16, kernel_size=(2*ncoef,3), stride=(1,1), padding=(0,1), bias=False), nn.BatchNorm2d(16), nn.ReLU()))
 
 		self.model.append(self._make_layer(block, 64, layers[0], stride=1))
 		self.model.append(self._make_layer(block, 128, layers[1], stride=2))
@@ -222,6 +225,9 @@ class ResNet_34(nn.Module):
 	def forward(self, x):
 
 		z = self.encoder(x.unsqueeze(1)).unsqueeze(1)
+
+		z_mu = z.mean(-1, keepdim=True).repeat([1,1,1,z.size(-1)])
+		z=torch.cat([z, z_mu], 2)
 
 		for mod_ in self.model:
 			z = mod_(z)
@@ -241,7 +247,7 @@ class ResNet_18(nn.Module):
 
 		self.model = nn.ModuleList()
 
-		self.model.append(nn.Sequential(nn.Conv2d(1, 16, kernel_size=(ncoef,3), stride=(1,1), padding=(0,1), bias=False), nn.BatchNorm2d(16), nn.ReLU()))
+		self.model.append(nn.Sequential(nn.Conv2d(1, 16, kernel_size=(2*ncoef,3), stride=(1,1), padding=(0,1), bias=False), nn.BatchNorm2d(16), nn.ReLU()))
 
 		self.model.append(self._make_layer(block, 64, layers[0], stride=1))
 		self.model.append(self._make_layer(block, 128, layers[1], stride=2))
@@ -295,6 +301,9 @@ class ResNet_18(nn.Module):
 	def forward(self, x):
 
 		z = self.encoder(x.unsqueeze(1)).unsqueeze(1)
+
+		z_mu = z.mean(-1, keepdim=True).repeat([1,1,1,z.size(-1)])
+		z=torch.cat([z, z_mu], 2)
 
 		for mod_ in self.model:
 			z = mod_(z)
@@ -324,7 +333,7 @@ class TDNN(nn.Module):
 		if pase_cp:
 			self.encoder.load_pretrained(pase_cp, load_last=True, verbose=False)
 
-		self.model = nn.Sequential( nn.Conv1d(ncoef, 512, 5, padding=2),
+		self.model = nn.Sequential( nn.Conv1d(2*ncoef, 512, 5, padding=2),
 			nn.BatchNorm1d(512),
 			nn.ReLU(inplace=True),
 			nn.Conv1d(512, 512, 3, dilation=2, padding=2),
@@ -361,8 +370,145 @@ class TDNN(nn.Module):
 	def forward(self, x):
 
 		z = self.encoder(x.unsqueeze(1))
+
+		z_mu = z.mean(-1, keepdim=True).repeat([1,1,z.size(-1)])
+		z=torch.cat([z, z_mu], 1)
+
 		z = self.model(z)
 		z = self.pooling(z)
 		z = self.post_pooling(z)
 
 		return z.squeeze()
+
+class MLP(nn.Module):
+	# Architecture taken from https://github.com/santi-pdp/pase/blob/master/pase/models/tdnn.pyf
+	def __init__(self, pase_cfg, pase_cp=None, n_z=256, proj_size=0, ncoef=100, sm_type='none'):
+		super(MLP, self).__init__()
+
+		self.encoder = wf_builder(pase_cfg)
+		if pase_cp:
+			self.encoder.load_pretrained(pase_cp, load_last=True, verbose=False)
+
+		self.model = nn.Sequential( nn.Conv1d(2*ncoef, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, 1500, 1),
+			nn.BatchNorm1d(1500),
+			nn.ReLU(inplace=True))
+
+		self.pooling = StatisticalPooling()
+
+		self.post_pooling = nn.Sequential(nn.Conv1d(3000, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, n_z, 1) )
+
+		if proj_size>0 and sm_type!='none':
+			if sm_type=='softmax':
+				self.out_proj=Softmax(input_features=n_z, output_features=proj_size)
+			elif sm_type=='am_softmax':
+				self.out_proj=AMSoftmax(input_features=n_z, output_features=proj_size)
+			else:
+				raise NotImplementedError
+
+	def forward(self, x):
+
+		z = self.encoder(x.unsqueeze(1))
+
+		z_mu = z.mean(-1, keepdim=True).repeat([1,1,z.size(-1)])
+		z=torch.cat([z, z_mu], 1)
+
+		z = self.model(z)
+		z = self.pooling(z)
+		z = self.post_pooling(z)
+
+		return z.squeeze()
+
+class pyr_rnn(nn.Module):
+	def __init__(self, pase_cfg, pase_cp=None, n_layers=4, n_z=256, proj_size=0, ncoef=23, sm_type='none'):
+		super(pyr_rnn, self).__init__()
+
+		self.lstms = nn.ModuleList([nn.LSTM(2*ncoef, 256, 1, bidirectional=True, batch_first=True)])
+
+		for i in range(1,n_layers):
+			self.lstms.append(nn.LSTM(256*2*2, 256, 1, bidirectional=True, batch_first=True))
+
+		self.pooling = StatisticalPooling()
+
+		self.post_pooling = nn.Sequential(nn.Conv1d(256*2*2*2, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, n_z, 1) )
+
+		self.initialize_params()
+
+		self.attention = SelfAttention(512)
+
+		if proj_size>0 and sm_type!='none':
+			if sm_type=='softmax':
+				self.out_proj=Softmax(input_features=n_z, output_features=proj_size)
+			elif sm_type=='am_softmax':
+				self.out_proj=AMSoftmax(input_features=n_z, output_features=proj_size)
+			else:
+				raise NotImplementedError
+
+		self.encoder = wf_builder(pase_cfg)
+		if pase_cp:
+			self.encoder.load_pretrained(pase_cp, load_last=True, verbose=False)
+
+	def initialize_params(self):
+
+		for layer in self.modules():
+			if isinstance(layer, torch.nn.Conv2d):
+				init.kaiming_normal_(layer.weight, a=0, mode='fan_out')
+			elif isinstance(layer, torch.nn.Linear):
+				init.kaiming_uniform_(layer.weight)
+			elif isinstance(layer, torch.nn.BatchNorm2d) or isinstance(layer, torch.nn.BatchNorm1d):
+				layer.weight.data.fill_(1)
+				layer.bias.data.zero_()
+
+	def _make_layer(self, block, planes, num_blocks, stride):
+		strides = [stride] + [1]*(num_blocks-1)
+		layers = []
+		for stride in strides:
+			layers.append(block(self.in_planes, planes, stride))
+			self.in_planes = planes * block.expansion
+		return nn.Sequential(*layers)
+
+	def forward(self, x, inner=False):
+
+		x = self.encoder(x.unsqueeze(1))
+
+		x = x.permute(0,2,1)
+
+		batch_size = x.size(0)
+		seq_size = x.size(1)
+
+		x_mu = x.mean(1, keepdim=True).repeat([1,seq_size,1])
+
+		x=torch.cat([x, x_mu], -1)
+
+		h0 = torch.zeros(2, batch_size, 256)
+		c0 = torch.zeros(2, batch_size, 256)
+
+		if x.is_cuda:
+			h0 = h0.cuda(x.get_device())
+			c0 = c0.cuda(x.get_device())
+
+		for mod_ in self.lstms:
+			x, (h_, c_) = mod_(x, (h0, c0))
+			if x.size(1)%2>0:
+				x=x[:,:-1,:]
+			x = x.contiguous().view(x.size(0), -1, x.size(-1)*2)
+
+		x = self.pooling(x.transpose(1,2))
+
+		x = self.post_pooling(x)
+
+		return x.squeeze()
