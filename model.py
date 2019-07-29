@@ -431,7 +431,7 @@ class pyr_rnn(nn.Module):
 	def __init__(self, pase_cfg, pase_cp=None, n_layers=4, n_z=256, proj_size=0, ncoef=23, sm_type='none'):
 		super(pyr_rnn, self).__init__()
 
-		self.lstms = nn.ModuleList([nn.LSTM(2*ncoef, 256, 1, bidirectional=True, batch_first=True)])
+		self.model = nn.ModuleList([nn.LSTM(2*ncoef, 256, 1, bidirectional=True, batch_first=True)])
 
 		for i in range(1,n_layers):
 			self.lstms.append(nn.LSTM(256*2*2, 256, 1, bidirectional=True, batch_first=True))
@@ -501,7 +501,7 @@ class pyr_rnn(nn.Module):
 			h0 = h0.cuda(x.get_device())
 			c0 = c0.cuda(x.get_device())
 
-		for mod_ in self.lstms:
+		for mod_ in self.model:
 			x, (h_, c_) = mod_(x, (h0, c0))
 			if x.size(1)%2>0:
 				x=x[:,:-1,:]
