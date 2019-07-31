@@ -164,7 +164,10 @@ class TrainLoop(object):
 
 		self.model.train()
 		self.optimizer.zero_grad()
-		self.optimizer_pase.zero_grad()
+		if self.optimizer_pase:
+			self.optimizer_pase.zero_grad()
+		else:
+			self.model.encoder.eval()
 
 		utt_1, utt_2, utt_3, utt_4, utt_5, y = batch
 		utterances = torch.cat([utt_1, utt_2, utt_3, utt_4, utt_5], dim=0)
@@ -207,19 +210,24 @@ class TrainLoop(object):
 			loss += ce
 			loss.backward()
 			self.optimizer.step()
-			self.optimizer_pase.step()
+			if self.optimizer_pase:
+				self.optimizer_pase.step()
 			return loss_log+ce.item(), ce.item()
 		else:
 			loss.backward()
 			self.optimizer.step()
-			self.optimizer_pase.step()
+			if self.optimizer_pase:
+				self.optimizer_pase.step()
 			return loss_log
 
 	def pretrain_step(self, batch):
 
 		self.model.train()
 		self.optimizer.zero_grad()
-		self.optimizer_pase.zero_grad()
+		if self.optimizer_pase:
+			self.optimizer_pase.zero_grad()
+		else:
+			self.model.encoder.eval()
 
 		utt_1, utt_2, utt_3, utt_4, utt_5, y = batch
 		utterances = torch.cat([utt_1, utt_2, utt_3, utt_4, utt_5], dim=0)
@@ -239,7 +247,8 @@ class TrainLoop(object):
 
 		loss.backward()
 		self.optimizer.step()
-		self.optimizer_pase.step()
+		if self.optimizer_pase:
+			self.optimizer_pase.step()
 		return loss.item()
 
 
@@ -288,13 +297,21 @@ class TrainLoop(object):
 		# Checkpointing
 		if self.verbose>0:
 			print('Checkpointing...')
-		ckpt = {'model_state': self.model.state_dict(),
-		'optimizer_state': self.optimizer.state_dict(),
-		'optimizer_pase_state': self.optimizer_pase.state_dict(),
-		'scheduler_state': self.scheduler.state_dict(),
-		'history': self.history,
-		'total_iters': self.total_iters,
-		'cur_epoch': self.cur_epoch}
+		if self.optimizer_pase:
+			ckpt = {'model_state': self.model.state_dict(),
+			'optimizer_state': self.optimizer.state_dict(),
+			'optimizer_pase_state': self.optimizer_pase.state_dict(),
+			'scheduler_state': self.scheduler.state_dict(),
+			'history': self.history,
+			'total_iters': self.total_iters,
+			'cur_epoch': self.cur_epoch}
+		else:
+			ckpt = {'model_state': self.model.state_dict(),
+			'optimizer_state': self.optimizer.state_dict(),
+			'scheduler_state': self.scheduler.state_dict(),
+			'history': self.history,
+			'total_iters': self.total_iters,
+			'cur_epoch': self.cur_epoch}
 		try:
 			torch.save(ckpt, self.save_epoch_fmt.format(self.cur_epoch))
 		except:
@@ -309,7 +326,8 @@ class TrainLoop(object):
 			self.model.load_state_dict(ckpt['model_state'])
 			# Load optimizer state
 			self.optimizer.load_state_dict(ckpt['optimizer_state'])
-			self.optimizer_pase.load_state_dict(ckpt['optimizer_pase_state'])
+			if self.optimizer_pase:
+				self.optimizer_pase.load_state_dict(ckpt['optimizer_pase_state'])
 			# Load scheduler state
 			self.scheduler.load_state_dict(ckpt['scheduler_state'])
 			# Load history

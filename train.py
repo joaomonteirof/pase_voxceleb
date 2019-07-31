@@ -31,7 +31,7 @@ parser.add_argument('--pase-cfg', type=str, metavar='Path', help='Path to pase c
 parser.add_argument('--pase-cp', type=str, default=None, metavar='Path', help='Path to pase cp')
 parser.add_argument('--train-hdf-file', type=str, default='./data/train.hdf', metavar='Path', help='Path to hdf data')
 parser.add_argument('--valid-hdf-file', type=str, default=None, metavar='Path', help='Path to hdf data')
-parser.add_argument('--model', choices=['resnet_18', 'resnet_34', 'resnet_50', 'TDNN', 'MLP', 'pyr_rnn'], default='resnet_18', help='Model arch according to input type')
+parser.add_argument('--model', choices=['resnet_18', 'resnet_34', 'resnet_50', 'TDNN', 'MLP', 'global_MLP', 'pyr_rnn'], default='resnet_18', help='Model arch according to input type')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
 parser.add_argument('--seed', type=int, default=1, metavar='S', help='random seed (default: 1)')
 parser.add_argument('--save-every', type=int, default=1, metavar='N', help='how many epochs to wait before logging training status. Default is 1')
@@ -44,6 +44,7 @@ parser.add_argument('--mine-triplets', action='store_true', default=False, help=
 parser.add_argument('--vad', action='store_true', default=True, help='Remove silence frames from train recordings')
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables GPU use')
 parser.add_argument('--no-cp', action='store_true', default=False, help='Disables checkpointing')
+parser.add_argument('--train-pase', action='store_true', default=False, help='Enables PASE updates')
 parser.add_argument('--verbose', type=int, default=1, metavar='N', help='Verbose is activated if > 0')
 args = parser.parse_args()
 args.cuda = True if not args.no_cuda and torch.cuda.is_available() else False
@@ -78,6 +79,8 @@ elif args.model == 'TDNN':
 	model = model_.TDNN(pase_cfg=args.pase_cfg, pase_cp=args.pase_cp, n_z=args.latent_size, proj_size=train_dataset.n_speakers if args.softmax!='none' or args.pretrain else 0, ncoef=args.ncoef, sm_type=args.softmax)
 elif args.model == 'MLP':
 	model = model_.MLP(pase_cfg=args.pase_cfg, pase_cp=args.pase_cp, n_z=args.latent_size, proj_size=train_dataset.n_speakers if args.softmax!='none' or args.pretrain else 0, ncoef=args.ncoef, sm_type=args.softmax)
+elif args.model == 'global_MLP':
+	model = model_.global_MLP(pase_cfg=args.pase_cfg, pase_cp=args.pase_cp, n_z=args.latent_size, proj_size=train_dataset.n_speakers if args.softmax!='none' or args.pretrain else 0, ncoef=args.ncoef, sm_type=args.softmax)
 elif args.model == 'pyr_rnn':
 	model = model_.pyr_rnn(pase_cfg=args.pase_cfg, pase_cp=args.pase_cp, n_z=args.latent_size, proj_size=train_dataset.n_speakers if args.softmax!='none' or args.pretrain else 0, ncoef=args.ncoef, sm_type=args.softmax)
 
@@ -95,8 +98,8 @@ if args.pretrained_path is not None:
 if args.cuda:
 	model = model.to(device)
 
-optimizer_pase = optim.SGD(model.encoder.parameters(), lr=args.lr if args.lr_pase else args.lr/10., momentum=0.1, weight_decay=1e-5)
-optimizer = optim.SGD(list(model.model.parameters())+list(model.pooling.parameters())+list(model.post_pooling.parameters()), lr=args.lr, momentum=args.momentum, weight_decay=args.l2)
+optimizer_pase = optim.SGD(model.encoder.parameters(), lr=args.lr if args.lr_pase else args.lr/10., momentum=0.1, weight_decay=1e-5) if args.train_pase else None
+optimizer = optim.SGD(list(model.model.parameters())+list(model.pooling.parameters())+list(model.post_pooling.parameters()), lr=args.lr, momentum=args.momentum, weight_decay=args.l2) if not args.model=='global_MLP' else optim.SGD(model.model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.l2)
 
 trainer = TrainLoop(model, optimizer, optimizer_pase, train_loader, valid_loader, margin=args.margin, lambda_=args.lamb, patience=args.patience, verbose=args.verbose, device=device, save_cp=(not args.no_cp), checkpoint_path=args.checkpoint_path, checkpoint_epoch=args.checkpoint_epoch, swap=args.swap, softmax=args.softmax, pretrain=args.pretrain, mining=args.mine_triplets, cuda=args.cuda)
 
@@ -105,6 +108,7 @@ if args.verbose >0:
 	print('Cuda Mode: {}'.format(args.cuda))
 	print('Device: {}'.format(device))
 	print('Pretrain Mode: {}'.format(args.pretrain))
+	print('Train PASE: {}'.format(args.train_pase))
 	print('Softmax Mode: {}'.format(args.softmax))
 	print('Mining Mode: {}'.format(args.mine_triplets))
 	print('Selected model: {}'.format(args.model))

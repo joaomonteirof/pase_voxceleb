@@ -427,6 +427,38 @@ class MLP(nn.Module):
 
 		return z.squeeze()
 
+class global_MLP(nn.Module):
+	# Architecture taken from https://github.com/santi-pdp/pase/blob/master/pase/models/tdnn.pyf
+	def __init__(self, pase_cfg, pase_cp=None, n_z=256, proj_size=0, ncoef=100, sm_type='none'):
+		super(global_MLP, self).__init__()
+
+		self.encoder = wf_builder(pase_cfg)
+		if pase_cp:
+			self.encoder.load_pretrained(pase_cp, load_last=True, verbose=False)
+
+		self.model = nn.Sequential(nn.Linear(ncoef, 512),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Linear(512, 512),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Linear(512, n_z) )
+
+		if proj_size>0 and sm_type!='none':
+			if sm_type=='softmax':
+				self.out_proj=Softmax(input_features=n_z, output_features=proj_size)
+			elif sm_type=='am_softmax':
+				self.out_proj=AMSoftmax(input_features=n_z, output_features=proj_size)
+			else:
+				raise NotImplementedError
+
+	def forward(self, x):
+
+		z = self.encoder(x.unsqueeze(1)).mean(-1)
+		z = self.model(z)
+
+		return z
+
 class pyr_rnn(nn.Module):
 	def __init__(self, pase_cfg, pase_cp=None, n_layers=4, n_z=256, proj_size=0, ncoef=23, sm_type='none'):
 		super(pyr_rnn, self).__init__()
