@@ -122,7 +122,7 @@ class Loader(Dataset):
 			data_ = np.tile(data_, (mul))
 			data_ = data_[:self.max_len]
 
-		return librosa.feature.mfcc(y=data_, sr=16000, n_mfcc=slf.ncoef, hop_length=160, win_length=400) if self.ncoef else data_
+		return librosa.feature.mfcc(y=data_, sr=16000, n_mfcc=self.ncoef, hop_length=160, win_length=400) if self.ncoef else data_
 
 	def create_lists(self):
 
@@ -218,7 +218,7 @@ class Loader_valid(Dataset):
 			data_ = np.tile(data_, (mul))
 			data_ = data_[:self.max_len]
 
-		return librosa.feature.mfcc(y=data_, sr=16000, n_mfcc=slf.ncoef, hop_length=160, win_length=400) if self.ncoef else data_
+		return librosa.feature.mfcc(y=data_, sr=16000, n_mfcc=self.ncoef, hop_length=160, win_length=400) if self.ncoef else data_
 
 	def create_lists(self):
 

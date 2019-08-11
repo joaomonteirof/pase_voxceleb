@@ -168,7 +168,10 @@ class TrainLoop(object):
 		if self.optimizer_pase:
 			self.optimizer_pase.zero_grad()
 		else:
-			self.model.encoder.eval()
+			try:
+				self.model.encoder.eval()
+			except AttributeError:
+				pass
 
 		utt_1, utt_2, utt_3, utt_4, utt_5, y = batch
 		utterances = torch.cat([utt_1, utt_2, utt_3, utt_4, utt_5], dim=0)
@@ -232,7 +235,10 @@ class TrainLoop(object):
 		if self.optimizer_pase:
 			self.optimizer_pase.zero_grad()
 		else:
-			self.model.encoder.eval()
+			try:
+				self.model.encoder.eval()
+			except AttributeError:
+				pass
 
 		utt_1, utt_2, utt_3, utt_4, utt_5, y = batch
 		utterances = torch.cat([utt_1, utt_2, utt_3, utt_4, utt_5], dim=0)
