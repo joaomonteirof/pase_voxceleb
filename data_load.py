@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from utils.utils import strided_app
+import librosa
 
 def add_wgn(s,var=1e-4):
 	np.random.seed(0)
@@ -64,11 +65,12 @@ def nrg_vad(xframes,percent_thr,nrg_thr=0.,context=5):
 
 class Loader(Dataset):
 
-	def __init__(self, hdf5_name, max_len, vad=True):
+	def __init__(self, hdf5_name, max_len, vad=True, ncoef=None):
 		super(Loader, self).__init__()
 		self.hdf5_name = hdf5_name
 		self.max_len = int(max_len)
 		self.vad=vad
+		self.ncoef = ncoef
 
 		self.create_lists()
 
@@ -120,7 +122,7 @@ class Loader(Dataset):
 			data_ = np.tile(data_, (mul))
 			data_ = data_[:self.max_len]
 
-		return data_
+		return librosa.feature.mfcc(y=data_, sr=16000, n_mfcc=slf.ncoef, hop_length=160, win_length=400) if self.ncoef else data_
 
 	def create_lists(self):
 
@@ -156,11 +158,12 @@ class Loader(Dataset):
 
 class Loader_valid(Dataset):
 
-	def __init__(self, hdf5_name, max_len, vad=True):
+	def __init__(self, hdf5_name, max_len, vad=True, ncoef=None):
 		super(Loader_valid, self).__init__()
 		self.hdf5_name = hdf5_name
 		self.max_len = int(max_len)
 		self.vad=vad
+		self.ncoef = ncoef
 
 		self.create_lists()
 
@@ -215,7 +218,7 @@ class Loader_valid(Dataset):
 			data_ = np.tile(data_, (mul))
 			data_ = data_[:self.max_len]
 
-		return data_
+		return librosa.feature.mfcc(y=data_, sr=16000, n_mfcc=slf.ncoef, hop_length=160, win_length=400) if self.ncoef else data_
 
 	def create_lists(self):
 

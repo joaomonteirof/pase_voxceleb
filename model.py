@@ -380,6 +380,53 @@ class TDNN(nn.Module):
 
 		return z.squeeze()
 
+class TDNN_mfcc(nn.Module):
+	# Architecture taken from https://github.com/santi-pdp/pase/blob/master/pase/models/tdnn.pyf
+	def __init__(self, n_z=256, proj_size=0, ncoef=100, sm_type='none'):
+		super(TDNN_mfcc, self).__init__()
+
+		self.model = nn.Sequential( nn.Conv1d(ncoef, 512, 5, padding=2),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, 512, 3, dilation=2, padding=2),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, 512, 3, dilation=3, padding=3),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, 1500, 1),
+			nn.BatchNorm1d(1500),
+			nn.ReLU(inplace=True))
+
+		self.pooling = StatisticalPooling()
+
+		self.post_pooling = nn.Sequential(nn.Conv1d(3000, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, 512, 1),
+			nn.BatchNorm1d(512),
+			nn.ReLU(inplace=True),
+			nn.Conv1d(512, n_z, 1) )
+
+		if proj_size>0 and sm_type!='none':
+			if sm_type=='softmax':
+				self.out_proj=Softmax(input_features=n_z, output_features=proj_size)
+			elif sm_type=='am_softmax':
+				self.out_proj=AMSoftmax(input_features=n_z, output_features=proj_size)
+			else:
+				raise NotImplementedError
+
+	def forward(self, x):
+
+		z = self.model(x)
+		z = self.pooling(z)
+		z = self.post_pooling(z)
+
+		return z.squeeze(-1)
+
 class MLP(nn.Module):
 	# Architecture taken from https://github.com/santi-pdp/pase/blob/master/pase/models/tdnn.pyf
 	def __init__(self, pase_cfg, pase_cp=None, n_z=256, proj_size=0, ncoef=100, sm_type='none'):

@@ -176,8 +176,12 @@ class TrainLoop(object):
 
 		entropy_indices = None
 
-		ridx = np.random.randint(utterances.size(1)//4, utterances.size(1))
-		utterances = utterances[:,:ridx]
+		ridx = np.random.randint(utterances.size(-1)//4, utterances.size(-1))
+
+		try:
+			utterances = utterances[:,:ridx]
+		except:
+			utterances = utterances[:,:,:ridx]
 
 		if self.cuda_mode:
 			utterances = utterances.to(self.device)
@@ -263,8 +267,10 @@ class TrainLoop(object):
 			utterances = torch.cat([utt_1, utt_2, utt_3, utt_4, utt_5], dim=0)
 			y = torch.cat(5*[y], dim=0).squeeze()
 
-			ridx = np.random.randint(utterances.size(1)//4, utterances.size(1))
-			utterances = utterances[:,:ridx]
+			try:
+				utterances = utterances[:,:ridx]
+			except:
+				utterances = utterances[:,:,:ridx]
 
 			if self.cuda_mode:
 				utterances = utterances.to(self.device)
