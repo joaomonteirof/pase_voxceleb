@@ -333,7 +333,8 @@ class TDNN(nn.Module):
 		if pase_cp:
 			self.encoder.load_pretrained(pase_cp, load_last=True, verbose=False)
 
-		self.model = nn.Sequential( nn.Conv1d(2*ncoef, 512, 5, padding=2),
+		self.model = nn.Sequential( nn.BatchNorm1d(2*ncoef),
+			nn.Conv1d(2*ncoef, 512, 5, padding=2),
 			nn.BatchNorm1d(512),
 			nn.ReLU(inplace=True),
 			nn.Conv1d(512, 512, 3, dilation=2, padding=2),
@@ -385,7 +386,8 @@ class TDNN_mfcc(nn.Module):
 	def __init__(self, n_z=256, proj_size=0, ncoef=100, sm_type='none'):
 		super(TDNN_mfcc, self).__init__()
 
-		self.model = nn.Sequential( nn.Conv1d(ncoef, 512, 5, padding=2),
+		self.model = nn.Sequential( nn.BatchNorm1d(ncoef),
+			nn.Conv1d(ncoef, 512, 5, padding=2),
 			nn.BatchNorm1d(512),
 			nn.ReLU(inplace=True),
 			nn.Conv1d(512, 512, 3, dilation=2, padding=2),
