@@ -67,7 +67,7 @@ if args.model == 'global_MLP' or args.model == 'all':
 	model = model_.global_MLP(pase_cfg=args.pase_cfg, pase_cp=args.pase_cp, n_z=args.latent_size, ncoef=args.ncoef, proj_size=10, sm_type='softmax').to(device)
 	mu = model.forward(batch)
 	out = model.out_proj(mu, torch.ones(mu.size(0)))
-	print('MLP', mu.size(), out.size())
+	print('global_MLP', mu.size(), out.size())
 if args.model == 'pyr_rnn' or args.model == 'all':
 	batch = torch.rand(3, 10000).to(device)
 	model = model_.pyr_rnn(pase_cfg=args.pase_cfg, pase_cp=args.pase_cp, n_z=args.latent_size, ncoef=args.ncoef, proj_size=10, sm_type='softmax').to(device)
