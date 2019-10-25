@@ -430,7 +430,6 @@ class TDNN_mfcc(nn.Module):
 		return z.squeeze(-1)
 
 class MLP(nn.Module):
-	# Architecture taken from https://github.com/santi-pdp/pase/blob/master/pase/models/tdnn.pyf
 	def __init__(self, pase_cfg, pase_cp=None, n_z=256, proj_size=0, ncoef=100, sm_type='none'):
 		super(MLP, self).__init__()
 
@@ -477,7 +476,6 @@ class MLP(nn.Module):
 		return z.squeeze()
 
 class global_MLP(nn.Module):
-	# Architecture taken from https://github.com/santi-pdp/pase/blob/master/pase/models/tdnn.pyf
 	def __init__(self, pase_cfg, pase_cp=None, n_z=256, proj_size=0, ncoef=100, sm_type='none'):
 		super(global_MLP, self).__init__()
 

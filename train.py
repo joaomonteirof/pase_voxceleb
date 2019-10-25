@@ -42,7 +42,7 @@ parser.add_argument('--softmax', choices=['none', 'softmax', 'am_softmax'], defa
 parser.add_argument('--pretrain', action='store_true', default=False, help='Adds softmax layer for speaker identification and train exclusively with CE minimization')
 parser.add_argument('--mine-triplets', action='store_true', default=False, help='Enables distance mining for triplets')
 parser.add_argument('--vad', action='store_true', default=True, help='Remove silence frames from train recordings')
-parser.add_argument('--mfcc', action='store_true', default=True, help='MFCC')
+parser.add_argument('--mfcc', action='store_true', default=False, help='MFCC')
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables GPU use')
 parser.add_argument('--no-cp', action='store_true', default=False, help='Disables checkpointing')
 parser.add_argument('--train-pase', action='store_true', default=False, help='Enables PASE updates')
