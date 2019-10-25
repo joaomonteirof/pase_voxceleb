@@ -10,7 +10,7 @@ from utils.utils import *
 
 # Training settings
 parser = argparse.ArgumentParser(description='Test new architectures')
-parser.add_argument('--model', choices=['resnet_18', 'resnet_34', 'resnet_50', 'TDNN', 'TDNN_mfcc', 'global_MLP', 'pyr_rnn', 'all'], default='all', help='Model arch according to input type')
+parser.add_argument('--model', choices=['resnet_18', 'resnet_34', 'resnet_50', 'TDNN', 'TDNN_mfcc', 'MLP', 'global_MLP', 'pyr_rnn', 'all'], default='all', help='Model arch according to input type')
 parser.add_argument('--latent-size', type=int, default=200, metavar='S', help='latent layer dimension (default: 200)')
 parser.add_argument('--ncoef', type=int, default=100, metavar='N', help='number of MFCCs (default: 100)')
 parser.add_argument('--pase-cfg', type=str, metavar='Path', help='Path to pase cfg')
