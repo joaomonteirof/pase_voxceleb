@@ -37,7 +37,7 @@ if __name__ == '__main__':
 			else:
 				spk2utt[spk]=[utt]
 
-	elif:
+	elif args.data_info_path is not None:
 		utt2spk = read_utt2spk(args.data_info_path+'utt2spk')
 		spk2utt = read_spk2utt(args.data_info_path+'spk2utt', 1)
 		utt2rec = read_utt2rec(args.data_info_path+'wav.scp', args.m4a)
