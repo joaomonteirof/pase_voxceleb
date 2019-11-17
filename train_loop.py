@@ -131,8 +131,7 @@ class TrainLoop(object):
 				pass
 
 		utterances, y = batch
-
-		entropy_indices = None
+		y = y.squeeze()
 
 		ridx = np.random.randint(utterances.size(-1)//2, utterances.size(-1))
 
