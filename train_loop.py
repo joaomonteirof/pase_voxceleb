@@ -6,13 +6,13 @@ from tqdm import tqdm
 
 import os
 
-from utils.harvester import HardestNegativeTripletSelector, AllTripletSelector
+from utils.harvester import AllTripletSelector
 
 from utils.utils import compute_eer
 
 class TrainLoop(object):
 
-	def __init__(self, model, optimizer, optimizer_pase, train_loader, valid_loader, margin, lambda_, patience, verbose=-1, device=0, cp_name=None, save_cp=False, checkpoint_path=None, checkpoint_epoch=None, swap=False, softmax=False, pretrain=False, mining=False, cuda=True):
+	def __init__(self, model, optimizer, optimizer_pase, train_loader, valid_loader, patience, verbose=-1, device=0, cp_name=None, save_cp=False, checkpoint_path=None, checkpoint_epoch=None, cuda=True):
 		if checkpoint_path is None:
 			# Save to current directory
 			self.checkpoint_path = os.getcwd()
@@ -23,20 +23,14 @@ class TrainLoop(object):
 
 		self.save_epoch_fmt = os.path.join(self.checkpoint_path, cp_name) if cp_name else os.path.join(self.checkpoint_path, 'checkpoint_{}ep.pt')
 		self.cuda_mode = cuda
-		self.softmax = softmax!='none'
 		self.pretrain = pretrain
-		self.mining = mining
 		self.model = model
-		self.swap = swap
-		self.lambda_ = lambda_
 		self.optimizer = optimizer
 		self.optimizer_pase = optimizer_pase
 		self.train_loader = train_loader
 		self.valid_loader = valid_loader
 		self.total_iters = 0
 		self.cur_epoch = 0
-		self.margin = margin
-		self.harvester_mine = HardestNegativeTripletSelector(margin=self.margin, cpu=not self.cuda_mode)
 		self.harvester_all = AllTripletSelector()
 		self.verbose = verbose
 		self.save_cp = save_cp
@@ -48,10 +42,6 @@ class TrainLoop(object):
 			self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.5, patience=patience, verbose=True if self.verbose>0 else False, threshold=1e-4, min_lr=1e-7)
 		else:
 			self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[20, 100, 200, 300, 400], gamma=0.1)
-
-		if self.softmax:
-			self.history['softmax_batch']=[]
-			self.history['softmax']=[]
 
 		if checkpoint_epoch is not None:
 			self.load_checkpoint(self.save_epoch_fmt.format(checkpoint_epoch))
@@ -73,48 +63,16 @@ class TrainLoop(object):
 
 			train_loss_epoch=0.0
 
-			if self.softmax and not self.pretrain:
+			for t, batch in train_iter:
+				train_loss = self.train_step(batch)
+				self.history['train_loss_batch'].append(train_loss)
+				train_loss_epoch+=train_loss
+				self.total_iters += 1
 
-				ce_epoch=0.0
-				for t, batch in train_iter:
-					train_loss, ce = self.train_step(batch)
-					self.history['train_loss_batch'].append(train_loss)
-					self.history['softmax_batch'].append(ce)
-					train_loss_epoch+=train_loss
-					ce_epoch+=ce
-					self.total_iters += 1
+			self.history['train_loss'].append(train_loss_epoch/(t+1))
 
-				self.history['train_loss'].append(train_loss_epoch/(t+1))
-				self.history['softmax'].append(ce_epoch/(t+1))
-
-				if self.verbose>0:
-					print('Total train loss, Triplet loss, and Cross-entropy: {:0.4f}, {:0.4f}, {:0.4f}'.format(self.history['train_loss'][-1], (self.history['train_loss'][-1]-self.history['softmax'][-1]), self.history['softmax'][-1]))
-
-			elif self.pretrain:
-
-				ce_epoch=0.0
-				for t, batch in train_iter:
-					ce = self.pretrain_step(batch)
-					self.history['train_loss_batch'].append(ce)
-					ce_epoch+=ce
-					self.total_iters += 1
-
-				self.history['train_loss'].append(ce_epoch/(t+1))
-
-				if self.verbose>0:
-					print('Train loss: {:0.4f}'.format(self.history['train_loss'][-1]))
-
-			else:
-				for t, batch in train_iter:
-					train_loss = self.train_step(batch)
-					self.history['train_loss_batch'].append(train_loss)
-					train_loss_epoch+=train_loss
-					self.total_iters += 1
-
-				self.history['train_loss'].append(train_loss_epoch/(t+1))
-
-				if self.verbose>0:
-					print('Total train loss, {:0.4f}'.format(self.history['train_loss'][-1]))
+			if self.verbose>0:
+				print('Total train loss, {:0.4f}'.format(self.history['train_loss'][-1]))
 
 			if self.valid_loader is not None:
 
@@ -173,13 +131,11 @@ class TrainLoop(object):
 			except AttributeError:
 				pass
 
-		utt_1, utt_2, utt_3, utt_4, utt_5, y = batch
-		utterances = torch.cat([utt_1, utt_2, utt_3, utt_4, utt_5], dim=0)
-		y = torch.cat(5*[y], dim=0).squeeze()
+		utterances, y = batch
 
 		entropy_indices = None
 
-		ridx = np.random.randint(utterances.size(-1)//4, utterances.size(-1))
+		ridx = np.random.randint(utterances.size(-1)//2, utterances.size(-1))
 
 		try:
 			utterances = utterances[:,:ridx]
@@ -193,75 +149,12 @@ class TrainLoop(object):
 		embeddings = self.model.forward(utterances)
 		embeddings_norm = F.normalize(embeddings, p=2, dim=1)
 
-		if self.mining:
-			triplets_idx, entropy_indices = self.harvester_mine.get_triplets(embeddings_norm.detach(), y)
-		else:
-			triplets_idx = self.harvester_all.get_triplets(embeddings_norm.detach(), y)
-
-		if self.cuda_mode:
-			triplets_idx = triplets_idx.to(self.device)
-
-		emb_a = torch.index_select(embeddings_norm, 0, triplets_idx[:, 0])
-		emb_p = torch.index_select(embeddings_norm, 0, triplets_idx[:, 1])
-		emb_n = torch.index_select(embeddings_norm, 0, triplets_idx[:, 2])
-
-		loss = self.triplet_loss(emb_a, emb_p, emb_n)
-
-		loss_log = loss.item()
-
-		if entropy_indices is not None:
-			entropy_regularizer = torch.nn.functional.pairwise_distance(embeddings_norm, embeddings_norm[entropy_indices,:]).mean()
-			loss -= entropy_regularizer*self.lambda_
-
-		if self.softmax:
-			ce = F.cross_entropy(self.model.out_proj(embeddings_norm, y), y)
-			loss += ce
-			loss.backward()
-			self.optimizer.step()
-			if self.optimizer_pase:
-				self.optimizer_pase.step()
-			return loss_log+ce.item(), ce.item()
-		else:
-			loss.backward()
-			self.optimizer.step()
-			if self.optimizer_pase:
-				self.optimizer_pase.step()
-			return loss_log
-
-	def pretrain_step(self, batch):
-
-		self.model.train()
-		self.optimizer.zero_grad()
-		if self.optimizer_pase:
-			self.optimizer_pase.zero_grad()
-		else:
-			try:
-				self.model.encoder.eval()
-			except AttributeError:
-				pass
-
-		utt_1, utt_2, utt_3, utt_4, utt_5, y = batch
-		utterances = torch.cat([utt_1, utt_2, utt_3, utt_4, utt_5], dim=0)
-		y = torch.cat(5*[y], dim=0).squeeze()
-
-		ridx = np.random.randint(utterances.size(-1)//4, utterances.size(-1))
-		utterances = utterances[:,:ridx]
-
-		if self.cuda_mode:
-			utterances = utterances.to(self.device)
-			y = y.to(self.device)
-
-		embeddings = self.model.forward(utterances)
-		embeddings_norm = F.normalize(embeddings, p=2, dim=1)
-
 		loss = F.cross_entropy(self.model.out_proj(embeddings_norm, y), y)
-
 		loss.backward()
 		self.optimizer.step()
 		if self.optimizer_pase:
 			self.optimizer_pase.step()
 		return loss.item()
-
 
 	def valid(self, batch):
 
@@ -296,16 +189,10 @@ class TrainLoop(object):
 			emb_p = torch.index_select(embeddings_norm, 0, triplets_idx[:, 1])
 			emb_n = torch.index_select(embeddings_norm, 0, triplets_idx[:, 2])
 
-			scores_p = torch.nn.functional.cosine_similarity(emb_a, emb_p)
-			scores_n = torch.nn.functional.cosine_similarity(emb_a, emb_n)
+			scores_p = F.cosine_similarity(emb_a, emb_p)
+			scores_n = F.cosine_similarity(emb_a, emb_n)
 
 		return np.concatenate([scores_p.detach().cpu().numpy(), scores_n.detach().cpu().numpy()], 0), np.concatenate([np.ones(scores_p.size(0)), np.zeros(scores_n.size(0))], 0)
-
-	def triplet_loss(self, emba, embp, embn, reduce_=True):
-
-		loss_ = torch.nn.TripletMarginLoss(margin=self.margin, p=2.0, eps=1e-06, swap=self.swap, reduction='mean' if reduce_ else 'none')(emba, embp, embn)
-
-		return loss_
 
 	def checkpointing(self):
 

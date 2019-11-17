@@ -80,17 +80,13 @@ class Loader(Dataset):
 
 	def __getitem__(self, index):
 
-		utt_1, utt_2, utt_3, utt_4, utt_5, spk, y= self.utt_list[index]
+		utt, spk, y = self.utt_list[index]
 
 		if not self.open_file: self.open_file = h5py.File(self.hdf5_name, 'r')
 
-		utt_1_data = torch.from_numpy( self.prep_utterance( self.open_file[spk][utt_1] ) )
-		utt_2_data = torch.from_numpy( self.prep_utterance( self.open_file[spk][utt_2] ) )
-		utt_3_data = torch.from_numpy( self.prep_utterance( self.open_file[spk][utt_3] ) )
-		utt_4_data = torch.from_numpy( self.prep_utterance( self.open_file[spk][utt_4] ) )
-		utt_5_data = torch.from_numpy( self.prep_utterance( self.open_file[spk][utt_5] ) )
+		utt_data = torch.from_numpy( self.prep_utterance( self.open_file[spk][utt] ) )
 
-		return utt_1_data, utt_2_data, utt_3_data, utt_4_data, utt_5_data, y
+		return utt_data, y
 
 	def __len__(self):
 		return len(self.utt_list)
@@ -148,13 +144,10 @@ class Loader(Dataset):
 		for i, spk in enumerate(self.spk2utt):
 			spk_utt_list = np.random.permutation(list(self.spk2utt[spk]))
 
-			idxs = strided_app(np.arange(len(spk_utt_list)),5,5)
-
-			for idxs_list in idxs:
-				if len(idxs_list)==5:
-					self.utt_list.append([spk_utt_list[utt_idx] for utt_idx in idxs_list])
-					self.utt_list[-1].append(spk)
-					self.utt_list[-1].append(self.spk2label[spk])
+			for utt in spk_utt_list:
+				self.utt_list.append([utt])
+				self.utt_list[-1].append(spk)
+				self.utt_list[-1].append(self.spk2label[spk])
 
 class Loader_valid(Dataset):
 
