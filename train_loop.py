@@ -23,7 +23,6 @@ class TrainLoop(object):
 
 		self.save_epoch_fmt = os.path.join(self.checkpoint_path, cp_name) if cp_name else os.path.join(self.checkpoint_path, 'checkpoint_{}ep.pt')
 		self.cuda_mode = cuda
-		self.pretrain = pretrain
 		self.model = model
 		self.optimizer = optimizer
 		self.optimizer_pase = optimizer_pase
@@ -166,7 +165,7 @@ class TrainLoop(object):
 			utterances = torch.cat([utt_1, utt_2, utt_3, utt_4, utt_5], dim=0)
 			y = torch.cat(5*[y], dim=0).squeeze()
 
-			ridx = np.random.randint(utterances.size(-1)//4, utterances.size(-1))
+			ridx = np.random.randint(utterances.size(-1)//2, utterances.size(-1))
 
 			try:
 				utterances = utterances[:,:ridx]
