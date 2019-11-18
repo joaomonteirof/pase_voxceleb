@@ -7,12 +7,12 @@ from tqdm import tqdm
 import os
 
 from utils.harvester import AllTripletSelector
-
+from utils.losses import LabelSmoothingLoss
 from utils.utils import compute_eer
 
 class TrainLoop(object):
 
-	def __init__(self, model, optimizer, optimizer_pase, train_loader, valid_loader, patience, verbose=-1, device=0, cp_name=None, save_cp=False, checkpoint_path=None, checkpoint_epoch=None, cuda=True):
+	def __init__(self, model, optimizer, optimizer_pase, train_loader, valid_loader, label_smoothing, patience, verbose=-1, device=0, cp_name=None, save_cp=False, checkpoint_path=None, checkpoint_epoch=None, cuda=True):
 		if checkpoint_path is None:
 			# Save to current directory
 			self.checkpoint_path = os.getcwd()
@@ -35,6 +35,11 @@ class TrainLoop(object):
 		self.save_cp = save_cp
 		self.device = device
 		self.history = {'train_loss': [], 'train_loss_batch': []}
+
+		if label_smoothing>0.0:
+			self.ce_criterion = LabelSmoothingLoss(label_smoothing, lbl_set_size=train_loader.dataset.n_speakers)
+		else:
+			self.ce_criterion = torch.nn.CrossEntropyLoss()
 
 		if self.valid_loader is not None:
 			self.history['valid_loss'] = []
@@ -147,7 +152,7 @@ class TrainLoop(object):
 		embeddings = self.model.forward(utterances)
 		embeddings_norm = F.normalize(embeddings, p=2, dim=1)
 
-		loss = F.cross_entropy(self.model.out_proj(embeddings_norm, y), y)
+		loss = self.ce_criterion(self.model.out_proj(embeddings_norm, y), y)
 		loss.backward()
 		self.optimizer.step()
 		if self.optimizer_pase:

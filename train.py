@@ -21,6 +21,7 @@ parser.add_argument('--lr-pase', type=float, default=None, metavar='LR', help='P
 parser.add_argument('--momentum', type=float, default=0.9, metavar='m', help='Momentum paprameter (default: 0.9)')
 parser.add_argument('--l2', type=float, default=1e-5, metavar='L2', help='Weight decay coefficient (default: 0.00001)')
 parser.add_argument('--patience', type=int, default=10, metavar='S', help='Epochs to wait before decreasing LR by a factor of 0.5 (default: 10)')
+parser.add_argument('--smoothing', type=float, default=0.2, metavar='l', help='Label smoothing (default: 0.2)')
 parser.add_argument('--checkpoint-epoch', type=int, default=None, metavar='N', help='epoch to load for checkpointing. If None, training starts from scratch')
 parser.add_argument('--checkpoint-path', type=str, default=None, metavar='Path', help='Path for checkpointing')
 parser.add_argument('--pretrained-path', type=str, default=None, metavar='Path', help='Path for pre trained model')
@@ -99,7 +100,7 @@ if args.cuda:
 optimizer_pase = optim.SGD(model.encoder.parameters(), lr=args.lr if args.lr_pase else args.lr/10., momentum=0.1, weight_decay=1e-5) if args.train_pase else None
 optimizer = optim.SGD(list(model.model.parameters())+list(model.pooling.parameters())+list(model.post_pooling.parameters()), lr=args.lr, momentum=args.momentum, weight_decay=args.l2) if not args.model=='global_MLP' else optim.SGD(model.model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.l2)
 
-trainer = TrainLoop(model, optimizer, optimizer_pase, train_loader, valid_loader, patience=args.patience, verbose=args.verbose, device=device, save_cp=(not args.no_cp), checkpoint_path=args.checkpoint_path, checkpoint_epoch=args.checkpoint_epoch, cuda=args.cuda)
+trainer = TrainLoop(model, optimizer, optimizer_pase, train_loader, valid_loader, label_smoothing=args.smoothing, patience=args.patience, verbose=args.verbose, device=device, save_cp=(not args.no_cp), checkpoint_path=args.checkpoint_path, checkpoint_epoch=args.checkpoint_epoch, cuda=args.cuda)
 
 if args.verbose >0:
 	print(' ')
@@ -114,6 +115,7 @@ if args.verbose >0:
 	print('Pase LR: {}'.format(args.lr_pase if args.lr_pase else args.lr/10.))
 	print('momentum: {}'.format(args.momentum))
 	print('l2: {}'.format(args.l2))
+	print('Label smoothing: {}'.format(args.smoothing))
 	print('Patience: {}'.format(args.patience))
 	print('Max input length: {}'.format(args.max_len))
 	print('Number of train speakers: {}'.format(train_dataset.n_speakers))
