@@ -51,11 +51,11 @@ if args.cuda:
 	torch.cuda.manual_seed(args.seed)
 
 train_dataset = Loader(hdf5_name = args.train_hdf_file, max_len = args.max_len, vad = args.vad, ncoef = args.ncoef if args.mfcc else None)
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, worker_init_fn=set_np_randomseed)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True, num_workers=args.workers, worker_init_fn=set_np_randomseed)
 
 if args.valid_hdf_file is not None:
 	valid_dataset = Loader_valid(hdf5_name = args.valid_hdf_file, max_len = args.max_len, vad = args.vad, ncoef = args.ncoef if args.mfcc else None)
-	valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.valid_batch_size, shuffle=True, num_workers=args.workers, worker_init_fn=set_np_randomseed)
+	valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.valid_batch_size, shuffle=True, drop_last=True, num_workers=args.workers, worker_init_fn=set_np_randomseed)
 else:
 	valid_loader=None
 
