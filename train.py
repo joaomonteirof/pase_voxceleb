@@ -97,7 +97,7 @@ if args.pretrained_path is not None:
 if args.cuda:
 	model = model.to(device)
 
-optimizer_pase = optim.SGD(model.encoder.parameters(), lr=args.lr if args.lr_pase else args.lr/10., momentum=0.1, weight_decay=1e-5) if args.train_pase else None
+optimizer_pase = optim.SGD(model.encoder.parameters(), lr=args.lr_pase if args.lr_pase else args.lr/10., momentum=0.1, weight_decay=1e-5) if args.train_pase else None
 optimizer = optim.SGD(list(model.model.parameters())+list(model.pooling.parameters())+list(model.post_pooling.parameters()), lr=args.lr, momentum=args.momentum, weight_decay=args.l2) if not args.model=='global_MLP' else optim.SGD(model.model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.l2)
 
 trainer = TrainLoop(model, optimizer, optimizer_pase, train_loader, valid_loader, label_smoothing=args.smoothing, patience=args.patience, verbose=args.verbose, device=device, save_cp=(not args.no_cp), checkpoint_path=args.checkpoint_path, checkpoint_epoch=args.checkpoint_epoch, cuda=args.cuda)
